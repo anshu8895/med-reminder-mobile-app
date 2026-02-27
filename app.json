@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "learn-mobile-med-app",
+    "name": "medicine-reminder-mobile-app",
     "slug": "learn-mobile-med-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "learnmobilemedapp",
+    "scheme": "medicinereminder",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anshu8895.medicinereminder"
     },
     "web": {
       "output": "static",
@@ -38,11 +39,32 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#2563eb",
+          "defaultChannel": "default",
+          "androidMode": "exact"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "55105f5a-2041-4375-8a08-79419365e3d6"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/55105f5a-2041-4375-8a08-79419365e3d6"
     }
   }
 }
