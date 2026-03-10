@@ -90,7 +90,7 @@ export default function AddMedicineScreen() {
             );
         });
         setPickerIndex(-1);
-    };
+    }; ``;
 
     // ── Save ──────────────────────────────────────────────────────────────────
     const handleAdd = async () => {
@@ -114,7 +114,7 @@ export default function AddMedicineScreen() {
             const existing = await getMedicines();
             await saveMedicines([
                 ...existing,
-                { id: Date.now().toString(), name: medicineName.trim(), times: sortedTimes },
+                { id: Date.now().toString(), name: medicineName.trim(), times: sortedTimes, createdAt: new Date().toISOString() },
             ]);
             setMedicineName("");
             setFrequency(1);

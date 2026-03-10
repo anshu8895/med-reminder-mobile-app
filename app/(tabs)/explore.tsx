@@ -1,163 +1,100 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AdherenceDashboard } from "../../components/explore/AdherenceDashboard";
+import {
+  computeMissRisk,
+  computeReliability,
+  computeStreakFromLogs,
+  localDateKey,
+  localDayStart,
+  medExistedOn,
+} from "../../components/explore/adherenceHelpers";
+import { CelebrationCard } from "../../components/explore/CelebrationCard";
+import { HealthTipCard } from "../../components/explore/HealthTipCard";
+import { QuickActionsGrid } from "../../components/explore/QuickActionsGrid";
+import { ReliabilityCard } from "../../components/explore/ReliabilityCard";
+import { SearchBar, SearchResults } from "../../components/explore/SearchBar";
+import { HEALTH_TIPS, MedReliability, MissRisk } from "../../components/explore/types";
+import { Medicine } from "../../constants/medicine";
+import { getMedicines, getTakenLogs } from "../../lib/storage";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type QuickAction = {
-  id: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  bg: string;
-};
-
-type HealthTip = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  body: string;
-};
-
-// ─── Static data ─────────────────────────────────────────────────────────────
-
-const QUICK_ACTIONS: QuickAction[] = [
-  { id: "drug", label: "Drug\nInformation", icon: "medical", color: "#2563eb", bg: "#eff6ff" },
-  { id: "interaction", label: "Interaction\nChecker", icon: "flask", color: "#7c3aed", bg: "#f5f3ff" },
-  { id: "pharmacy", label: "Find\nPharmacy", icon: "location", color: "#059669", bg: "#ecfdf5" },
-  { id: "emergency", label: "Emergency\nContacts", icon: "call", color: "#dc2626", bg: "#fef2f2" },
-];
-
-const HEALTH_TIP: HealthTip = {
-  icon: "sunny",
-  title: "Tip of the Day",
-  body: "Take medications at the same time each day to build a habit. Setting a morning alarm is one of the most effective ways to improve adherence by up to 80%.",
-};
-
-// Weekly compliance data (Sun–Sat), true = taken, false = missed
-const WEEKLY_DATA: boolean[] = [true, true, false, true, true, false, true];
-const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function SearchBar() {
-  const [query, setQuery] = useState("");
-  return (
-    <View style={styles.searchWrapper}>
-      <Ionicons name="search" size={18} color="#9ca3af" style={styles.searchIcon} />
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search medications or tips…"
-        placeholderTextColor="#9ca3af"
-        value={query}
-        onChangeText={setQuery}
-        returnKeyType="search"
-      />
-    </View>
-  );
-}
-
-function AdherenceDashboard() {
-  const taken = WEEKLY_DATA.filter(Boolean).length;
-  const pct = Math.round((taken / WEEKLY_DATA.length) * 100);
-
-  return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Weekly Compliance</Text>
-      <Text style={styles.cardSubtitle}>Last 7 days</Text>
-
-      {/* Circle */}
-      <View style={styles.circleRow}>
-        <View style={styles.circle}>
-          <Text style={styles.circlePercent}>{pct}%</Text>
-          <Text style={styles.circleLabel}>adherence</Text>
-        </View>
-
-        {/* Day pills */}
-        <View style={styles.dayGrid}>
-          {WEEKLY_DATA.map((taken, i) => (
-            <View key={i} style={styles.dayItem}>
-              <View style={[styles.dayDot, taken ? styles.dayDotTaken : styles.dayDotMissed]}>
-                <Ionicons
-                  name={taken ? "checkmark" : "close"}
-                  size={12}
-                  color="#fff"
-                />
-              </View>
-              <Text style={styles.dayLabel}>{DAY_LABELS[i]}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.statRow}>
-        <View style={styles.stat}>
-          <Text style={styles.statValue}>{taken}</Text>
-          <Text style={styles.statLabel}>Taken</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.stat}>
-          <Text style={[styles.statValue, { color: "#dc2626" }]}>{WEEKLY_DATA.length - taken}</Text>
-          <Text style={styles.statLabel}>Missed</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.stat}>
-          <Text style={styles.statValue}>{WEEKLY_DATA.length}</Text>
-          <Text style={styles.statLabel}>Total</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function QuickActionsGrid() {
-  return (
-    <View>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
-      <View style={styles.grid}>
-        {QUICK_ACTIONS.map((action) => (
-          <Pressable
-            key={action.id}
-            style={({ pressed }) => [styles.actionCard, { backgroundColor: action.bg, opacity: pressed ? 0.75 : 1 }]}
-            android_ripple={{ color: action.color + "22" }}
-          >
-            <View style={[styles.actionIconBg, { backgroundColor: action.color + "18" }]}>
-              <Ionicons name={action.icon} size={26} color={action.color} />
-            </View>
-            <Text style={[styles.actionLabel, { color: action.color }]}>{action.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function HealthTipCard({ tip }: { tip: HealthTip; }) {
-  return (
-    <View style={styles.tipCard}>
-      <View style={styles.tipHeader}>
-        <View style={styles.tipIconBg}>
-          <Ionicons name={tip.icon} size={22} color="#f59e0b" />
-        </View>
-        <Text style={styles.tipTitle}>{tip.title}</Text>
-      </View>
-      <Text style={styles.tipBody}>{tip.body}</Text>
-    </View>
-  );
-}
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ExploreScreen() {
-  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [dailyData, setDailyData] = useState<("perfect" | "missed" | "empty")[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [missRisk, setMissRisk] = useState<MissRisk | null>(null);
+  const [weekTakenCount, setWeekTakenCount] = useState(0);
+  const [weekTotalCount, setWeekTotalCount] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [reliability, setReliability] = useState<MedReliability[]>([]);
+
+
+  const loadAdherence = useCallback(async () => {
+    try {
+      const [meds, logs] = await Promise.all([getMedicines(), getTakenLogs()]);
+
+      // ── Two-level pre-index ──────────────────────────────────────────────
+      const medDayIndex = new Map<string, Map<string, number>>();
+      const logSet = new Set<string>();
+
+      for (const log of logs) {
+        const key = localDateKey(new Date(log.takenAt));
+        if (!medDayIndex.has(log.medicineId)) medDayIndex.set(log.medicineId, new Map());
+        const dayMap = medDayIndex.get(log.medicineId)!;
+        dayMap.set(key, (dayMap.get(key) ?? 0) + 1);
+        logSet.add(`${log.medicineId}-${log.timeIndex}-${key}`);
+      }
+
+      // ── Today ────────────────────────────────────────────────────────────
+      const todayKey = localDateKey(localDayStart(0));
+      const todayExpected = meds.reduce((sum, m) => sum + (m.times?.length ?? 0), 0);
+      const todayTaken = meds.reduce(
+        (sum, m) => sum + (medDayIndex.get(m.id)?.get(todayKey) ?? 0),
+        0
+      );
+      const isTodayComplete = todayExpected > 0 && todayTaken >= todayExpected;
+
+      // ── 30-day daily data ─────────────────────────────────────────────────
+      let weekTaken = 0;
+      let weekTotal = 0;
+      const dailyDataArr = Array.from({ length: 30 }, (_, i) => {
+        const dayStart = localDayStart(29 - i);
+        const dayKey = localDateKey(dayStart);
+        const existingMeds = meds.filter((m) => medExistedOn(m.createdAt, dayStart));
+        const expectedOnDay = existingMeds.reduce((sum, m) => sum + (m.times?.length ?? 0), 0);
+        const takenOnDay = existingMeds.reduce(
+          (sum, m) => sum + (medDayIndex.get(m.id)?.get(dayKey) ?? 0),
+          0
+        );
+        if (i >= 23) {
+          weekTaken += Math.min(takenOnDay, expectedOnDay);
+          weekTotal += expectedOnDay;
+        }
+        if (expectedOnDay === 0) return "empty";
+        return takenOnDay >= expectedOnDay ? "perfect" : "missed";
+      });
+
+      // ── Celebration — show whenever today is 100% complete ────────────────
+      setShowCelebration(isTodayComplete);
+
+      setMedicines(meds);
+      setDailyData(dailyDataArr);
+      setStreak(computeStreakFromLogs(medDayIndex, meds, isTodayComplete));
+      setMissRisk(computeMissRisk(logSet, meds));
+      setWeekTakenCount(weekTaken);
+      setWeekTotalCount(weekTotal);
+      setReliability(computeReliability(logSet, medDayIndex, meds));
+    } catch (e) {
+      console.warn("[ExploreScreen] Failed to load adherence data:", e);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadAdherence(); }, [loadAdherence]));
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -165,20 +102,33 @@ export default function ExploreScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
         <Text style={styles.screenTitle}>Explore</Text>
-        <SearchBar />
 
-        {/* Adherence dashboard */}
-        <AdherenceDashboard />
+        <SearchBar query={searchQuery} onChangeQuery={setSearchQuery} />
+        <SearchResults query={searchQuery} medicines={medicines} tips={HEALTH_TIPS} />
 
-        {/* Quick actions */}
+        {showCelebration && <CelebrationCard onDismiss={() => setShowCelebration(false)} />}
+
+        <AdherenceDashboard
+          dailyData={dailyData}
+          streak={streak}
+          missRisk={missRisk}
+          weekTakenCount={weekTakenCount}
+          weekTotalCount={weekTotalCount}
+        />
+
+        <ReliabilityCard data={reliability} />
+
         <QuickActionsGrid />
 
-        {/* Health tip */}
         <Text style={styles.sectionTitle}>Health Tips</Text>
-        <HealthTipCard tip={HEALTH_TIP} />
+        {HEALTH_TIPS.map((tip, i) => (
+          <View key={i} style={i < HEALTH_TIPS.length - 1 ? { marginBottom: 12 } : {}}>
+            <HealthTipCard tip={tip} />
+          </View>
+        ))}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -186,218 +136,13 @@ export default function ExploreScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 14,
-  },
-
-  // Search
-  searchWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  searchIcon: { marginRight: 8 },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: "#1f2937",
-  },
-
-  // Card
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#1f2937",
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginBottom: 16,
-  },
-
-  // Adherence circle row
-  circleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 18,
-    gap: 20,
-  },
-  circle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    borderWidth: 7,
-    borderColor: "#2563eb",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  circlePercent: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#2563eb",
-  },
-  circleLabel: {
-    fontSize: 9,
-    color: "#6b7280",
-    marginTop: 1,
-  },
-
-  // Day grid
-  dayGrid: {
-    flexDirection: "row",
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  dayItem: {
-    alignItems: "center",
-    gap: 4,
-  },
-  dayDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayDotTaken: { backgroundColor: "#2563eb" },
-  dayDotMissed: { backgroundColor: "#dc2626" },
-  dayLabel: {
-    fontSize: 10,
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-
-  // Stat row
-  statRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    backgroundColor: "#f9fafb",
-    borderRadius: 10,
-    paddingVertical: 12,
-  },
-  stat: { alignItems: "center" },
-  statValue: { fontSize: 20, fontWeight: "700", color: "#1f2937" },
-  statLabel: { fontSize: 11, color: "#6b7280", marginTop: 2 },
-  statDivider: { width: 1, height: 30, backgroundColor: "#e5e7eb" },
-
-  // Section title
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: 12,
-  },
-
-  // Quick actions
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionCard: {
-    width: "47%",
-    borderRadius: 14,
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-    minHeight: 110,
-    gap: 10,
-  },
-  actionIconBg: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    lineHeight: 18,
-  },
-
-  // Health tip
-  tipCard: {
-    backgroundColor: "#fffbeb",
-    borderRadius: 16,
-    padding: 18,
-    borderLeftWidth: 4,
-    borderLeftColor: "#f59e0b",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tipHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
-  },
-  tipIconBg: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#fef3c7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tipTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#92400e",
-  },
-  tipBody: {
-    fontSize: 14,
-    color: "#78350f",
-    lineHeight: 21,
-  },
-
+  safeArea: { flex: 1, backgroundColor: "#f5f5f5" },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 16, paddingTop: 12 },
+  screenTitle: { fontSize: 28, fontWeight: "700", color: "#1f2937", marginBottom: 14 },
+  sectionTitle: { fontSize: 17, fontWeight: "700", color: "#1f2937", marginBottom: 12 },
   bottomSpacer: { height: 32 },
 });

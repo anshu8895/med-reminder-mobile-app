@@ -62,7 +62,10 @@ function GreetingHeader() {
   return (
     <View style={styles.greetingRow}>
       <View>
-        <Text style={styles.greetingText}>{getGreeting()} 👋</Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={styles.greetingText}>{getGreeting()} </Text>
+          <Ionicons name="hand-right" size={20} color="#f59e0b" />
+        </View>
         <Text style={styles.dateText}>{formatDate()}</Text>
       </View>
       <View style={styles.pillIconBg}>
