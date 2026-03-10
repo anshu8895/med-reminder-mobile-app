@@ -76,7 +76,6 @@ export default function AddMedicineScreen() {
 
     // ── Time picker change ─────────────────────────────────────────────────────
     const handleTimeChange = (index: number, selectedDate: Date | undefined) => {
-        if (Platform.OS === "android") setPickerIndex(-1);
         if (!selectedDate) return;
         setTimes((prev) => {
             const updated = [...prev];
@@ -84,14 +83,9 @@ export default function AddMedicineScreen() {
                 hour: selectedDate.getHours(),
                 minute: selectedDate.getMinutes(),
             };
-            // Sort ascending immediately so the hint and home screen order match.
-            return [...updated].sort(
-                (a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute)
-            );
+            return updated;
         });
-        setPickerIndex(-1);
-    }; ``;
-
+    };
     // ── Save ──────────────────────────────────────────────────────────────────
     const handleAdd = async () => {
         if (!canSubmit) {
@@ -219,13 +213,29 @@ export default function AddMedicineScreen() {
                                     />
                                 </Pressable>
 
-                                {/* Inline picker for iOS; dialog for Android */}
-                                {pickerIndex === i && (
+                                {/* Platform-specific pickers */}
+                                {/* iOS: Always mounted, hidden via style, uses spinner */}
+                                {Platform.OS === "ios" && (
+                                    <View style={{ display: pickerIndex === i ? "flex" : "none" }}>
+                                        <DateTimePicker
+                                            value={doseTimeToDate(dt)}
+                                            mode="time"
+                                            display="spinner"
+                                            onChange={(_, date) => handleTimeChange(i, date)}
+                                        />
+                                    </View>
+                                )}
+
+                                {/* Android: Conditionally rendered, uses default dialog */}
+                                {Platform.OS === "android" && pickerIndex === i && (
                                     <DateTimePicker
                                         value={doseTimeToDate(dt)}
                                         mode="time"
-                                        display={Platform.OS === "ios" ? "spinner" : "default"}
-                                        onChange={(_, date) => handleTimeChange(i, date)}
+                                        display="default"
+                                        onChange={(_, date) => {
+                                            setPickerIndex(-1); // Close dialog on Android
+                                            handleTimeChange(i, date);
+                                        }}
                                     />
                                 )}
 
