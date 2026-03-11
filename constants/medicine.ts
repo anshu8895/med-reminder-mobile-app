@@ -4,7 +4,8 @@ export type DoseTime = { hour: number; minute: number; };
 export type Medicine = {
     id: string;
     name: string;
-    times: DoseTime[]; // 1 | 2 | 3 entries
+    times: DoseTime[];   // 1 | 2 | 3 entries
+    createdAt: string;   // ISO 8601 — when this medicine was first added
 };
 
 export type TakenLog = {

@@ -9,6 +9,7 @@ const LOGS_KEY = "med_taken_logs";
 const SNOOZE_STATE_KEY = "med_snooze_state";
 // Maps doseKey → scheduled notification ID, so we can cancel before re-scheduling
 const SNOOZE_NOTIF_IDS_KEY = "med_snooze_notif_ids";
+const INSTALL_DATE_KEY = "med_install_date";
 
 // ─── Snooze State ─────────────────────────────────────────────────────────────
 // Snooze is tracked per-dose using a composite key: `${medicineId}-${timeIndex}`
@@ -17,6 +18,19 @@ type SnoozeEntry = { doseKey: string; snoozeUntil: string; };
 
 export function doseKey(medicineId: string, timeIndex: number): string {
   return `${medicineId}-${timeIndex}`;
+}
+
+/**
+ * Returns the stored app install date, creating it on first call.
+ * Used as the conservative createdAt fallback during migration so that medicines
+ * with no logs don't silently lose the period between install and migration.
+ */
+export async function getOrSetInstallDate(): Promise<string> {
+  const stored = await AsyncStorage.getItem(INSTALL_DATE_KEY);
+  if (stored) return stored;
+  const now = new Date().toISOString();
+  await AsyncStorage.setItem(INSTALL_DATE_KEY, now);
+  return now;
 }
 
 /** Mark a specific dose as snoozed for N minutes from now. */
@@ -119,26 +133,50 @@ export async function getMedicines(): Promise<Medicine[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed: any[] = JSON.parse(raw);
 
-  // Forward migration: records stored before the dosage-frequency feature used
-  // {hour, minute} directly on the medicine. Convert them to times[] on read.
   let needsResave = false;
-  const migrated: Medicine[] = parsed.map((m) => {
-    if (!m.times) {
+
+  // Pre-read logs only when any record is missing createdAt (one-time migration cost)
+  const needsCreatedAt = parsed.some((m) => !m.createdAt);
+  let logsForMigration: TakenLog[] = [];
+  let installDateForMigration = new Date().toISOString(); // safe default
+  if (needsCreatedAt) {
+    const logsRaw = await AsyncStorage.getItem(LOGS_KEY);
+    logsForMigration = logsRaw ? JSON.parse(logsRaw) : [];
+    // Use stored install date so medicines with no logs don't lose pre-migration history
+    installDateForMigration = await getOrSetInstallDate();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const migrated: Medicine[] = parsed.map((m: any) => {
+    let result = { ...m };
+
+    // Migration 1: times[] (pre-frequency-feature records had hour/minute flat)
+    if (!result.times) {
       needsResave = true;
-      return {
-        ...m,
-        times: [{ hour: m.hour ?? 8, minute: m.minute ?? 0 }],
-      };
-    }
-    // Defensive: ensure every entry has a valid times array
-    if (!Array.isArray(m.times) || m.times.length === 0) {
+      result = { ...result, times: [{ hour: result.hour ?? 8, minute: result.minute ?? 0 }] };
+    } else if (!Array.isArray(result.times) || result.times.length === 0) {
       needsResave = true;
-      return { ...m, times: [{ hour: 8, minute: 0 }] };
+      result = { ...result, times: [{ hour: 8, minute: 0 }] };
     }
-    return m as Medicine;
+
+    // Migration 2: createdAt — use earliest log date; fall back to today
+    if (!result.createdAt) {
+      needsResave = true;
+      const medLogs = logsForMigration.filter((l) => l.medicineId === result.id);
+      if (medLogs.length > 0) {
+        const earliest = medLogs.reduce<string>(
+          (min, l) => (l.takenAt < min ? l.takenAt : min),
+          medLogs[0].takenAt
+        );
+        result = { ...result, createdAt: earliest };
+      } else {
+        result = { ...result, createdAt: installDateForMigration };
+      }
+    }
+
+    return result as Medicine;
   });
 
-  // Persist migrated data so the conversion only runs once
   if (needsResave) {
     await AsyncStorage.setItem(KEY, JSON.stringify(migrated));
   }
@@ -375,3 +413,25 @@ export async function deleteMedicineAndLogs(medicineId: string): Promise<void> {
     console.error("[delete] snooze pruning failed (non-fatal):", e);
   }
 }
+
+// ─── Celebration Persistence ──────────────────────────────────────────────────
+// Key is scoped to the calendar date so the banner shows at most once per day,
+// even if the user switches tabs or restarts the app.
+
+function celebrationKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `med_celebrated_${y}-${m}-${day}`;
+}
+
+export async function getCelebrationShownToday(): Promise<boolean> {
+  const val = await AsyncStorage.getItem(celebrationKey());
+  return val === "1";
+}
+
+export async function setCelebrationShownToday(): Promise<void> {
+  await AsyncStorage.setItem(celebrationKey(), "1");
+}
+
