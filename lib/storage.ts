@@ -390,8 +390,8 @@ export async function deleteMedicineAndLogs(medicineId: string): Promise<void> {
   try {
     await requestNotificationPermissions();
     await rescheduleAllNotifications(updated);
-  } catch (e) {
-    console.error("[delete] notification resync failed (non-fatal):", e);
+  } catch {
+    // notification resync failed (non-fatal)
   }
 
   // 3. Best-effort: purge taken logs for this medicine
@@ -399,8 +399,8 @@ export async function deleteMedicineAndLogs(medicineId: string): Promise<void> {
     const logs = await getTakenLogs();
     const prunedLogs = logs.filter((l) => l.medicineId !== medicineId);
     await AsyncStorage.setItem(LOGS_KEY, JSON.stringify(prunedLogs));
-  } catch (e) {
-    console.error("[delete] log pruning failed (non-fatal):", e);
+  } catch {
+    // log pruning failed (non-fatal)
   }
 
   // 4. Best-effort: purge snooze entries for this medicine
@@ -409,8 +409,8 @@ export async function deleteMedicineAndLogs(medicineId: string): Promise<void> {
     const entries: SnoozeEntry[] = raw ? JSON.parse(raw) : [];
     const prunedSnooze = entries.filter((e) => e.doseKey && !e.doseKey.startsWith(`${medicineId}-`));
     await AsyncStorage.setItem(SNOOZE_STATE_KEY, JSON.stringify(prunedSnooze));
-  } catch (e) {
-    console.error("[delete] snooze pruning failed (non-fatal):", e);
+  } catch {
+    // snooze pruning failed (non-fatal)
   }
 }
 

@@ -89,8 +89,8 @@ export default function ExploreScreen() {
       setWeekTakenCount(weekTaken);
       setWeekTotalCount(weekTotal);
       setReliability(computeReliability(logSet, medDayIndex, meds));
-    } catch (e) {
-      console.warn("[ExploreScreen] Failed to load adherence data:", e);
+    } catch {
+      // Failed to load adherence data
     }
   }, []);
 

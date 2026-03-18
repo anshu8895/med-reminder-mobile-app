@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "medicine-reminder-mobile-app",
+    "name": "MedReminder",
     "slug": "learn-mobile-med-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,11 +13,10 @@
       "bundleIdentifier": "com.anshu8895.medicinereminder"
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

@@ -63,9 +63,8 @@ async function handleNotificationAction(
       await setSnoozed(medicineId, timeIndex, SNOOZE_MINUTES);
       await scheduleSnoozeNotification(medicineId, medicineName, timeIndex);
     }
-  } catch (err) {
+  } catch {
     // Surface the error — was previously a silent unhandled rejection
-    console.error('[handleNotificationAction] action failed:', err);
   }
 
   // Always run these — even if the action above failed
