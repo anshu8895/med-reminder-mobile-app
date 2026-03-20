@@ -1,8 +1,32 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { QUICK_ACTIONS } from "./types";
 
 export function QuickActionsGrid() {
+    const router = useRouter();
+
+    function handlePress(id: string) {
+        switch (id) {
+            case "pharmacy":
+                Linking.openURL("https://www.google.com/maps/search/pharmacy+near+me")
+                    .catch(() => Linking.openURL("https://maps.google.com/?q=pharmacy+near+me"));
+                break;
+            case "emergency":
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                router.push("/emergency-contacts" as any);
+                break;
+            case "drug":
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                router.push("/drug-info" as any);
+                break;
+            case "interaction":
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                router.push("/interaction-checker" as any);
+                break;
+        }
+    }
+
     return (
         <View>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -15,6 +39,7 @@ export function QuickActionsGrid() {
                             { backgroundColor: action.bg, opacity: pressed ? 0.75 : 1 },
                         ]}
                         android_ripple={{ color: action.color + "22" }}
+                        onPress={() => handlePress(action.id)}
                     >
                         <View style={[styles.actionIconBg, { backgroundColor: action.color + "18" }]}>
                             <Ionicons name={action.icon} size={26} color={action.color} />
@@ -26,6 +51,7 @@ export function QuickActionsGrid() {
         </View>
     );
 }
+
 
 const styles = StyleSheet.create({
     sectionTitle: { fontSize: 17, fontWeight: "700", color: "#1f2937", marginBottom: 12 },

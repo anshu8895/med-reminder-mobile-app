@@ -147,6 +147,9 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="emergency-contacts" options={{ headerShown: false }} />
+        <Stack.Screen name="drug-info" options={{ headerShown: false }} />
+        <Stack.Screen name="interaction-checker" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
